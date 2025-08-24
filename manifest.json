@@ -1,0 +1,51 @@
+{
+  "videos": {
+    "JWR": {
+      "Elfmeter": [
+        {
+          "label": "JWR Elfmeter vs. Sturm I",
+          "url": "https://onedrive.live.com/download?resid=YOUR_RESID&authkey=YOUR_AUTHKEY"
+        },
+        {
+          "label": "JWR Elfmeter vs. Sturm II",
+          "url": "https://yourtenant.sharepoint.com/:v:/s/TeamSite/EXAMPLE?download=1"
+        }
+      ],
+      "1 Touch": [],
+      "2 Touch": [],
+      "Sonstiges": []
+    },
+    "SV Musterstadt": {
+      "Elfmeter": [],
+      "1 Touch": [],
+      "2 Touch": [],
+      "Sonstiges": []
+    }
+  },
+  "analysen": {
+    "Spieler A": [
+      {
+        "name": "Clip_001.mp4",
+        "url": "https://onedrive.live.com/download?resid=YOUR_RESID&authkey=YOUR_AUTHKEY"
+      },
+      {
+        "name": "Clip_002.mp4",
+        "url": "https://yourtenant.sharepoint.com/:v:/s/TeamSite/EXAMPLE?download=1"
+      }
+    ],
+    "Spieler B": []
+  },
+  "plots_base": {
+    "JWR": [
+      {
+        "name": "eigene_tore_JWR_2526.py",
+        "url": "https://onedrive.live.com/download?resid=YOUR_RESID&authkey=YOUR_AUTHKEY"
+      },
+      {
+        "name": "gegen_tore_JWR_2526.py",
+        "url": "https://yourtenant.sharepoint.com/:u:/s/TeamSite/EXAMPLE?download=1"
+      }
+    ],
+    "SV Musterstadt": []
+  }
+}
