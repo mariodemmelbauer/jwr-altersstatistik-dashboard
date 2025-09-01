@@ -9,9 +9,9 @@ import streamlit as st
 from pathlib import Path
 
 # ========================= CONFIG =========================
-BASE_DIR = Path(r"C:\Users\demmelb-ma\OneDrive - COC AG\JWR\Analysen\2526")
-ALTERSSTATISTIK_SCRIPT = Path(r"C:\Users\demmelb-ma\OneDrive - COC AG\JWR\Matches\2526\Durchschnittsalter.py")
-ALTERSSTATISTIK_EXCEL = Path(r"C:\Users\demmelb-ma\OneDrive - COC AG\JWR\Matches\2526\Statistik Altersdurchschnitt.xlsx")
+BASE_DIR = Path(__file__).parent
+ALTERSSTATISTIK_SCRIPT = BASE_DIR / "Durchschnittsalter.py"
+ALTERSSTATISTIK_EXCEL = BASE_DIR / "Statistik Altersdurchschnitt.xlsx"
 
 # ========================= PAGE SETUP =========================
 st.set_page_config(
