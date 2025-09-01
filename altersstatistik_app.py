@@ -193,51 +193,23 @@ def load_and_execute_altersstatistik_script():
             local_namespace['px'] = px
             local_namespace['go'] = go
             local_namespace['pyo'] = pyo
+            # Auch global verfügbar machen
+            globals()['plotly'] = plotly
+            globals()['px'] = px
+            globals()['go'] = go
+            globals()['pyo'] = pyo
         except ImportError:
-            st.warning("⚠️ Das 'plotly' Modul ist nicht installiert. Installieren Sie es mit: `pip install plotly`")
-            try:
-                import subprocess
-                import sys
-                st.info("🔄 Versuche plotly zu installieren...")
-                subprocess.check_call([sys.executable, "-m", "pip", "install", "plotly"])
-                st.success("✅ plotly erfolgreich installiert!")
-                
-                import plotly
-                import plotly.express as px
-                import plotly.graph_objects as go
-                import plotly.offline as pyo
-                local_namespace['plotly'] = plotly
-                local_namespace['px'] = px
-                local_namespace['go'] = go
-                local_namespace['pyo'] = pyo
-                # Auch global verfügbar machen
-                globals()['plotly'] = plotly
-                globals()['px'] = px
-                globals()['go'] = go
-                globals()['pyo'] = pyo
-            except Exception as install_error:
-                st.error(f"❌ Konnte plotly nicht installieren: {install_error}")
-                st.info("Bitte installieren Sie plotly manuell mit: `pip install plotly`")
-                return False
+            st.error("❌ Das 'plotly' Modul ist nicht installiert. Bitte stellen Sie sicher, dass alle Requirements installiert sind.")
+            st.info("**Lösung:** Alle Module sind bereits in der requirements_altersstatistik.txt aufgeführt.")
+            return False
         
         try:
             import openpyxl
             local_namespace['openpyxl'] = openpyxl
         except ImportError:
-            st.warning("⚠️ Das 'openpyxl' Modul ist nicht installiert. Es wird für Excel-Dateien benötigt.")
-            try:
-                import subprocess
-                import sys
-                st.info("🔄 Versuche openpyxl zu installieren...")
-                subprocess.check_call([sys.executable, "-m", "pip", "install", "openpyxl"])
-                st.success("✅ openpyxl erfolgreich installiert!")
-                
-                import openpyxl
-                local_namespace['openpyxl'] = openpyxl
-            except Exception as install_error:
-                st.error(f"❌ Konnte openpyxl nicht installieren: {install_error}")
-                st.info("Bitte installieren Sie openpyxl manuell mit: `pip install openpyxl`")
-                return False
+            st.error("❌ Das 'openpyxl' Modul ist nicht installiert. Bitte stellen Sie sicher, dass alle Requirements installiert sind.")
+            st.info("**Lösung:** Alle Module sind bereits in der requirements_altersstatistik.txt aufgeführt.")
+            return False
         
         try:
             import seaborn as sns
