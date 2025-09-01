@@ -387,16 +387,26 @@ with col1:
         
         # Füge Q1+Q2 und Q3+Q4 Spalten hinzu
         for i, team in enumerate(team_details_df['Team']):
-            if team in df_birth_quarters['Team'].values:
-                team_q1 = df_birth_quarters[df_birth_quarters['Team'] == team]['Q1_Jan_Mar'].iloc[0]
-                team_q2 = df_birth_quarters[df_birth_quarters['Team'] == team]['Q2_Apr_Jun'].iloc[0]
-                team_q3 = df_birth_quarters[df_birth_quarters['Team'] == team]['Q3_Jul_Sep'].iloc[0]
-                team_q4 = df_birth_quarters[df_birth_quarters['Team'] == team]['Q4_Oct_Dec'].iloc[0]
-                team_q1_q2 = team_q1 + team_q2
-                team_q3_q4 = team_q3 + team_q4
-                team_details_df.loc[i, 'Q1_Q2_Spieler'] = team_q1_q2
-                team_details_df.loc[i, 'Q3_Q4_Spieler'] = team_q3_q4
-            else:
+            # Suche nach dem Team in df_birth_quarters (mit Fallback-Namen)
+            team_found = False
+            for _, row in df_birth_quarters.iterrows():
+                if (team.lower() in row['Team'].lower() or 
+                    row['Team'].lower() in team.lower() or
+                    team == row['Team']):
+                    team_q1 = row['Q1_Jan_Mar']
+                    team_q2 = row['Q2_Apr_Jun']
+                    team_q3 = row['Q3_Jul_Sep']
+                    team_q4 = row['Q4_Oct_Dec']
+                    team_q1_q2 = team_q1 + team_q2
+                    team_q3_q4 = team_q3 + team_q4
+                    team_details_df.loc[i, 'Q1_Q2_Spieler'] = team_q1_q2
+                    team_details_df.loc[i, 'Q3_Q4_Spieler'] = team_q3_q4
+                    team_found = True
+                    break
+            
+            if not team_found:
+                # Debug-Ausgabe
+                st.caption(f"Team '{team}' nicht in df_birth_quarters gefunden")
                 team_details_df.loc[i, 'Q1_Q2_Spieler'] = 0
                 team_details_df.loc[i, 'Q3_Q4_Spieler'] = 0
         
