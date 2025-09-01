@@ -412,16 +412,14 @@ with col1:
         st.dataframe(
             display_df,
             use_container_width=False,
-            width=800,
-            height=None
+            width=800
         )
     else:
         # Fallback: Normale Tabelle ohne Q1+Q2 und Q3+Q4
         st.dataframe(
             df_teams.style.format({'Altersdurchschnitt': '{:.2f}'}),
             use_container_width=False,
-            width=800,
-            height=None
+            width=800
         )
 
 with col2:
