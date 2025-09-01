@@ -70,7 +70,7 @@ def draw_field():
     # Legende seitlich links unten platzieren
     ax.legend(loc="lower left", fontsize=10)
 
-    plt.title("St. Anna - Tore - 1 Elfmeter nicht berücksichtigt")
+    plt.title("St. Anna - Tore - 1 Elfmeter n.b.")
     plt.xlabel("Spielfeldbreite (m)")
     plt.ylabel("Spielfeldtiefe (m)")
     return ax

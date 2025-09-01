@@ -51,9 +51,9 @@ def draw_field():
     halbkreis_unten = patches.Arc((34, 11), 18, 18, angle=0, theta1=35, theta2=145, edgecolor='white', linewidth=2)  # Unterer Halbkreis
     ax.add_patch(halbkreis_unten)
 
-    # Tore (Fußball-Symbol) & Assists
-    goals = [(30,93),(43,77),(37,84),(43,89),(31,95),(40,93),(26,94),(31,93)]  # Torpositionen 
-    assists = [(39,70),(34,61),(44,93),(46,93),(44,85),(45,84),(34,76),(61,90)]  # Assist-Positionen
+    # Tore (Fußball-Symbol) & Assists (1 Tor fehlt vs. Treibach)
+    goals = [(30,93),(43,77),(37,84),(43,89),(31,95),(40,93),(26,94),(31,93),(28,93)]  # Torpositionen 
+    assists = [(39,70),(34,61),(44,93),(46,93),(44,85),(45,84),(34,76),(61,90),(42,70)]  # Assist-Positionen
 
     # Tore markieren (kleiner Ball-Symbol)
     for i, goal in enumerate(goals):

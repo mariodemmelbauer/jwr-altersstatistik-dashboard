@@ -52,8 +52,8 @@ def draw_field():
     ax.add_patch(halbkreis_unten)
 
     # Tore (Fußball-Symbol) & Assists
-    goals = [(39,88),(33,95),(26,95),(42,97),(41,98),(24,86),(20,94)]  # Torpositionen 
-    assists = [(63,84),(6,88),(16,96),(60,26),(67,85),(68,100),(33,89)]  # Assist-Positionen
+    goals = [(39,88),(33,95),(26,95),(42,97),(41,98),(24,86),(20,94),(43,98),(40,91),(51,89)]  # Torpositionen 
+    assists = [(63,84),(6,88),(16,96),(60,26),(67,85),(68,100),(33,89),(66,39),(9,90),(67,82)]  # Assist-Positionen
 
     # Tore markieren (kleiner Ball-Symbol)
     for i, goal in enumerate(goals):
