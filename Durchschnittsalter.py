@@ -8,7 +8,7 @@ import plotly.subplots as make_subplots
 
 # Seite konfigurieren
 st.set_page_config(
-    page_title="SK Rapid Wien II - Durchschnittsalter Dashboard",
+    page_title="JWR - Durchschnittsalter Dashboard",
     page_icon="⚽",
     layout="wide",
     initial_sidebar_state="expanded"
