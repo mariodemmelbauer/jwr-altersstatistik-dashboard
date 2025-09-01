@@ -80,6 +80,18 @@ def load_and_execute_altersstatistik_script():
             f'r"{str(ALTERSSTATISTIK_EXCEL)}"'
         )
         
+        # Titel explizit auf JWR setzen
+        script_content = script_content.replace(
+            'st.title("SK Rapid Wien II - Durchschnittsalter Dashboard")',
+            'st.title("JWR - Durchschnittsalter Dashboard")'
+        )
+        
+        # Page title auch auf JWR setzen
+        script_content = script_content.replace(
+            'page_title="SK Rapid Wien II - Durchschnittsalter Dashboard"',
+            'page_title="JWR - Durchschnittsalter Dashboard"'
+        )
+        
         # Modifiziere die get_team_color Funktion im Skript, um ungültige Farben zu verhindern
         script_content = script_content.replace(
             'def get_team_color(team_name):',
