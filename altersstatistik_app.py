@@ -286,7 +286,7 @@ def main():
     col1, col2 = st.columns([3, 1])
     
     with col1:
-        st.markdown("**Analyse der Durchschnittsalter in der Regionalliga Mitte**")
+        st.markdown("**Analyse der Durchschnittsalter der Amateur-Teams**")
     
     with col2:
         if st.button("🔄 Aktualisieren", help="Daten neu laden"):

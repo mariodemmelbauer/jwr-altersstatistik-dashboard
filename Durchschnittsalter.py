@@ -251,8 +251,8 @@ if df_teams is None:
     st.stop()
 
 # Haupttitel
-st.markdown('<h1 class="main-header">⚽ Durchschnittsalter Dashboard Amateur-Teams</h1>', unsafe_allow_html=True)
-st.markdown('<p style="text-align: center; font-size: 1.2rem; color: #666;">Saison 2025/26 - Alle Teams</p>', unsafe_allow_html=True)
+st.markdown('<h1 class="main-header">⚽ Durchschnittsalter Amateur-Teams</h1>', unsafe_allow_html=True)
+st.markdown('<p style="text-align: center; font-size: 1.2rem; color: #666;">Saison 2025/26</p>', unsafe_allow_html=True)
 
 # Team-Auswahl (ohne Sidebar-Header)
 # Index für JWR finden (falls vorhanden) und in int konvertieren

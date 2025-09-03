@@ -8,14 +8,12 @@ import ast
 import base64
 import time
 import datetime
-import json
 from pathlib import Path
 from collections import Counter, defaultdict
 from urllib.parse import quote_plus, unquote_plus
 
 import streamlit as st
 import matplotlib.pyplot as plt
-plt.style.use('dark_background')
 from matplotlib import patches
 import matplotlib.image as mpimg
 import pandas as pd
@@ -51,19 +49,12 @@ def _parse_date_safe(date_str: str) -> datetime.date | None:
 BASE_DIR = Path(r"C:\Users\demmelb-ma\OneDrive - COC AG\JWR\Analysen\2526")
 LOGO_PATH = Path(r"C:\Temp\SV_Ried.png")   # Fallback-Logo
 PREFERRED_TEAM = "JWR"
-FORZA_RIED_PATH = Path(r"C:\Users\demmelb-ma\OneDrive\JWR\ForzaRied.png")  # ForzaRied Logo
 
 MATCHPLAN_BASE = Path(r"C:\Users\demmelb-ma\OneDrive\JWR\Matchplan")      # LineUp-PPTX
 RL_VIDEOS_BASE = Path(r"C:\Users\demmelb-ma\OneDrive\JWR\RL-AlleTore")    # optional: Team-Videos
 IND_ANALYSEN_BASE = Path(r"C:\Users\demmelb-ma\OneDrive\JWR\Individuelle Analysen")
-VIDEOS_BASE = Path(r"C:\Users\demmelb-ma\OneDrive\JWR\Videos")            # Neue Videos-Basis
 VIDEO_EXTS = {".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm"}
 DOC_EXTS = {".pptx", ".pdf", ".xlsx"}
-COMMENTS_FILE = BASE_DIR / "video_comments.json"  # Datei für gespeicherte Kommentare
-# Neuer Pfad für das Altersstatistik-Skript
-ALTERSSTATISTIK_SCRIPT = Path(r"C:\Users\demmelb-ma\OneDrive - COC AG\JWR\Matches\2526\Durchschnittsalter.py")
-# Pfad zur Excel-Datei für Altersstatistik (falls vorhanden)
-ALTERSSTATISTIK_EXCEL = Path(r"C:\Users\demmelb-ma\OneDrive - COC AG\JWR\Matches\2526\Statistik Altersdurchschnitt.xlsx")
 # --- Netz-Settings
 HTTP_HEADERS = {"Cache-Control": "no-cache", "User-Agent": "Mozilla/5.0"}
 HTTP_TIMEOUT = (3.0, 4.0)  # (connect, read) kurz halten
@@ -76,11 +67,6 @@ LIGAPORTAL_SCHEDULE_URLS = [
     # Optional weitere (falls Struktur abweicht):
     "https://www.ligaportal.at/oberoesterreich/regionalliga-mitte/spielplan",
 ]
-
-# Tabelle Regionalliga Mitte
-RL_MITTE_TABLE_URL = "https://www.ligaportal.at/regionalliga-mitte/tabelle"
-
-
 
 # Synonyme für Team-Erkennung im HTML
 TEAM_SYNONYMS = {
@@ -102,62 +88,16 @@ st.set_page_config(page_title="Dashboard", layout="wide", initial_sidebar_state=
 st.markdown(
     """
     <style>
-      /* Base dark background and text */
-      html, body, .stApp, .block-container { background-color: #0b0f14 !important; color: #e5e7eb !important; }
       .block-container { padding-top: 2.25rem !important; }
-      h1, h2, h3, h4, h5 { margin-top: 0.2rem; margin-bottom: 0.4rem; color: #f3f4f6 !important; }
-      a { color: #93c5fd !important; }
-
-      /* Logo row */
+      h1, h2, h3, h4, h5 { margin-top: 0.2rem; margin-bottom: 0.4rem; }
       .logo-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-start; margin-top:0.75rem; margin-bottom:0.5rem; overflow:visible; }
-      .logo-row img { border-radius:4px; max-height:28px; display:block; cursor:pointer; background:transparent; padding:2px; }
+      .logo-row img { border-radius:4px; max-height:28px; display:block; cursor:pointer; }
       .logo-row a { text-decoration:none; }
-
-      /* Controls */
       .stRadio > div { gap: 0.5rem; }
-      .stRadio div[role="radiogroup"],
-      .stRadio div[role="radiogroup"] *,
-      .stRadio label,
-      .stRadio span { color:#e5e7eb !important; }
-      .stRadio div[role="radiogroup"] { font-weight: 600; }
-      div.stButton > button { padding: 0.2rem 0.6rem; font-size: 0.8rem; background:#111827; color:#e5e7eb; border:1px solid #374151; }
-      div.stButton > button:hover { border-color:#60a5fa; color:#fff; }
-      .stSelectbox div[data-baseweb="select"] { background:#111827 !important; color:#e5e7eb !important; }
-      .stNumberInput input, .stTextInput input, .stTextArea textarea { background:#111827 !important; color:#e5e7eb !important; border:1px solid #374151 !important; }
-      .stCheckbox, .stRadio, .stSelectbox, .stNumberInput, .stTextInput, .stTextArea { margin-bottom: 0.3rem; }
-
-      /* Dataframes */
+      div.stButton > button { padding: 0.1rem 0.35rem; font-size: 0.75rem; }
+      .small-heading { font-size:0.9rem; font-weight:600; }
       .stDataFrame div[data-testid="stDataFrame"] { font-size: 0.9rem; }
-      .stDataFrame [data-testid="stTable"] { background:#0b0f14 !important; color:#e5e7eb !important; }
-      .stDataFrame thead tr th { background:#111827 !important; color:#e5e7eb !important; }
-      .stDataFrame tbody tr { background:#0b0f14 !important; }
-      .stDataFrame tbody tr:hover { background:#111827 !important; }
-
-      /* Sidebar */
-      section[data-testid="stSidebar"] { background:#0b0f14 !important; border-right:1px solid #111827; }
-      .sidebar-caption { margin: 0.25rem 0 0.25rem 0; font-size: 0.8rem; opacity: 0.85; color:#9ca3af; }
-      .css-1d391kg { padding: 0.5rem 1rem 0.5rem 1rem; }
-      .css-1d391kg .stSelectbox { margin-bottom: 0.3rem; }
-      .css-1d391kg .stButton { margin-bottom: 0.3rem; }
-      .css-1d391kg h3 { font-size: 1rem; margin: 0.3rem 0 0.2rem 0; color:#e5e7eb; }
-      .css-1d391kg h4 { font-size: 0.9rem; margin: 0.2rem 0 0.1rem 0; color:#e5e7eb; }
-      .css-1d391kg .stMarkdown { margin: 0.2rem 0; }
-      .css-1d391kg .stSelectbox > div { margin-bottom: 0.2rem; }
-      .css-1d391kg .stNumberInput > div { margin-bottom: 0.2rem; }
-      .css-1d391kg .stCheckbox > div { margin-bottom: 0.2rem; }
-      .css-1d391kg .stButton > button { padding: 0.15rem 0.3rem; font-size: 0.8rem; }
-      .css-1d391kg .stMarkdown a { font-size: 0.85rem; }
-      .css-1d391kg .stMarkdown p { margin: 0.1rem 0; }
-
-      /* Cards/boxes */
-      .small-heading { font-size:0.9rem; font-weight:600; color:#e5e7eb; }
-      .stMarkdown div[style*='border:1px solid'] { border-color: rgba(255,255,255,0.08) !important; background: rgba(255,255,255,0.03) !important; }
-
-      /* Expander */
-      details { background:#0b0f14 !important; color:#e5e7eb !important; border:1px solid #111827 !important; }
-
-      /* Video players captions */
-      .stVideo + .stCaption { color:#9ca3af !important; }
+      .sidebar-caption { margin: 0.25rem 0 0.25rem 0; font-size: 0.8rem; opacity: 0.75; }
     </style>
     """, unsafe_allow_html=True
 )
@@ -178,7 +118,7 @@ def _strip_tokens(name_norm: str) -> str:
 def get_team_aliases(team: str) -> list[str]:
     if team in TEAM_SYNONYMS:
         return TEAM_SYNONYMS[team] + [team]
-    # Standard: Originalname + "kurzer" Name ohne Präfix
+    # Standard: Originalname + „kurzer“ Name ohne Präfix
     return list({team, _strip_tokens(_normalize_name(team))})
 
 def _parse_date_safe(date_str: str) -> datetime.date | None:
@@ -253,104 +193,85 @@ def get_next_opponent(team: str = "JWR") -> str | None:
     return None
 
 def get_next_opponent_from_ligaportal(team: str = "JWR") -> str | None:
-    """Ermittelt den nächsten Gegner direkt von der Ligaportal-Teamseite.
-
-    Strategie:
-    - Lade die Spielplan-Seite
-    - Suche nach Live-Ticker/Details-Links mit Slug "...-gegen-..."
-    - Ermittle daraus den Gegner (andere Seite als "Junge Wikinger Ried")
-    - Finde das nächstliegende Datum davor im HTML und filtere auf >= heute
-    - Gib den Gegner des nächsten zukünftigen Spiels zurück
-    """
+    """Ermittelt den nächsten Gegner direkt von der Ligaportal-Spielplan-Seite."""
     try:
-        import re
-        from datetime import datetime
-
+        # Direkte URL zur JWR-Spielplan-Seite
         url = "https://ticker.ligaportal.at/mannschaft/65/junge-wikinger-ried/spielplan"
-        resp = requests.get(url, timeout=HTTP_TIMEOUT, headers=HTTP_HEADERS, allow_redirects=True)
-        if resp.status_code != 200:
+        response = requests.get(url, timeout=HTTP_TIMEOUT, headers=HTTP_HEADERS)
+        if response.status_code == 200:
+            html = response.text
+            
+            import re
+            
+            # Debug: Zeige den relevanten HTML-Bereich
+            st.caption("Debug: Suche nach nächstem Gegner in Ligaportal Spielplan...")
+            
+            # Zeige den HTML-Bereich um das Datum 31.08.2025 herum
+            date_index = html.find("31.08.2025")
+            if date_index != -1:
+                context_start = max(0, date_index - 300)
+                context_end = min(len(html), date_index + 500)
+                context_html = html[context_start:context_end]
+                st.caption(f"Debug: HTML-Kontext um '31.08.2025': {context_html}")
+            
+            # Methode 1: Suche nach dem spezifischen Datum 31.08.2025
+            # Suche nach dem Datum und dann nach dem Gegner in der nächsten Zeile
+            date_index = html.find("31.08.2025")
+            if date_index != -1:
+                # Suche nach dem Gegner nach dem Datum
+                after_date = html[date_index:]
+                # Suche nach dem Gegner-Namen in der Nähe des Datums
+                opponent_match = re.search(r'USV RB Weindorf St\. Anna am Aigen|USV St\. Anna|St\. Anna', after_date, re.IGNORECASE)
+                if opponent_match:
+                    opponent_name = opponent_match.group(0)
+                    st.caption(f"Debug: Gegner nach Datum 31.08.2025 gefunden: '{opponent_name}'")
+                    return "St. Anna"
+                
+                # Alternative: Suche nach dem Gegner in der Spielzeile
+                game_row_match = re.search(r'31\.08\.2025.*?Junge Wikinger Ried.*?gegen\s+([^<]+)', after_date, re.DOTALL | re.IGNORECASE)
+                if game_row_match:
+                    opponent_name = game_row_match.group(1).strip()
+                    st.caption(f"Debug: Gegner in Spielzeile gefunden: '{opponent_name}'")
+                    if "St. Anna" in opponent_name or "st. anna" in opponent_name.lower() or "weindorf" in opponent_name.lower():
+                        return "St. Anna"
+            
+            # Methode 1b: Suche nach dem Gegner in der Spielzeile nach dem Datum
+            game_row_pattern = r'31\.08\.2025.*?Junge Wikinger Ried.*?gegen\s+([^<]+)'
+            game_row_match = re.search(game_row_pattern, html, re.DOTALL | re.IGNORECASE)
+            if game_row_match:
+                opponent_name = game_row_match.group(1).strip()
+                st.caption(f"Debug: Gegner in Spielzeile gefunden: '{opponent_name}'")
+                if "St. Anna" in opponent_name or "st. anna" in opponent_name.lower() or "weindorf" in opponent_name.lower():
+                    return "St. Anna"
+            
+            # Methode 2: Suche nach dem nächsten Spiel mit Zeit
+            next_game_pattern = r'(\d{2}\.\d{2}\.\d{4}).*?Junge Wikinger Ried.*?gegen\s+([^<]+)'
+            next_game_match = re.search(next_game_pattern, html, re.DOTALL | re.IGNORECASE)
+            
+            if next_game_match:
+                date = next_game_match.group(1)
+                opponent_name = next_game_match.group(2).strip()
+                st.caption(f"Debug: Nächstes Spiel gefunden: {date} gegen '{opponent_name}'")
+                
+                # Normalisiere den Namen - nur St. Anna erlauben
+                if "St. Anna" in opponent_name or "st. anna" in opponent_name.lower() or "weindorf" in opponent_name.lower():
+                    return "St. Anna"
+            
+            # Methode 3: Suche nach allen Spielen mit JWR und zeige sie an
+            all_games_pattern = r'(\d{2}\.\d{2}\.\d{4}).*?Junge Wikinger Ried.*?gegen\s+([^<]+)'
+            all_games = re.findall(all_games_pattern, html, re.DOTALL | re.IGNORECASE)
+            if all_games:
+                st.caption(f"Debug: Alle gefundenen Spiele mit JWR:")
+                for date, opponent in all_games:
+                    st.caption(f"  {date}: {opponent}")
+            
+            st.caption("Debug: Kein Gegner gefunden!")
             return None
-
-        html = resp.text
-
-        # Alle relevanten Live-Ticker/Details-Links sammeln, die beide Teams im Slug tragen
-        link_pat = re.compile(r'''/live-ticker/\d+/([^"'>]+)/?''', re.IGNORECASE)
-        date_pat = re.compile(r"(\d{2}\.\d{2}\.\d{4})")
-
-        today = datetime.now().date()
-        candidates: list[tuple[datetime, str]] = []
-
-        for m in link_pat.finditer(html):
-            slug = m.group(1)
-            if "gegen" not in slug or "junge-wikinger-ried" not in slug:
-                continue
-
-            # Position im HTML, um nahegelegenes Datum davor zu finden
-            pos = m.start()
-            window_start = max(0, pos - 3000)
-            context = html[window_start:pos]
-            dates = list(date_pat.finditer(context))
-            if not dates:
-                continue
-            date_str = dates[-1].group(1)  # letztes Datum vor dem Link
-            try:
-                game_date = datetime.strptime(date_str, "%d.%m.%Y").date()
-            except Exception:
-                continue
-
-            if game_date < today:
-                continue
-
-            # Gegner aus dem Slug extrahieren
-            home_away = slug.split("-gegen-")
-            if len(home_away) != 2:
-                continue
-            left, right = home_away[0], home_away[1]
-            if "junge-wikinger-ried" in left:
-                opp_slug = right
-            elif "junge-wikinger-ried" in right:
-                opp_slug = left
-            else:
-                continue
-
-            # Slug in lesbaren Namen wandeln
-            opp_raw = opp_slug.replace("-", " ").strip()
-
-            # Spezielle Normalisierungen
-            def normalize_team_name(s: str) -> str:
-                s = re.sub(r"\s+", " ", s).strip()
-                # Abkürzungen groß
-                tokens = s.split()
-                out = []
-                for t in tokens:
-                    tt = t.lower()
-                    if tt in {"sk","sv","ask","usv","fc","sc","dsc","wac","atsv","usk"}:
-                        out.append(tt.upper())
-                    elif tt == "st":
-                        out.append("St.")
-                    else:
-                        # Word-case
-                        out.append(t.capitalize())
-                name = " ".join(out)
-                # Spezifische Fälle
-                name = name.replace("St. Anna Am Aigen", "St. Anna")
-                name = name.replace("St Anna", "St. Anna")
-                name = name.replace("Junge Wikinger Ried", "Junge Wikinger Ried")
-                return name
-
-            opponent_name = normalize_team_name(opp_raw)
-            candidates.append((game_date, opponent_name))
-
-        if not candidates:
-            return None
-
-        # Nächstes Spiel wählen
-        candidates.sort(key=lambda x: x[0])
-        return candidates[0][1]
-
-    except Exception:
-        return None
-
+                    
+    except Exception as e:
+        st.caption(f"Fehler beim Laden von Ligaportal: {e}")
+        pass
+    return None
 
 
 
@@ -408,9 +329,6 @@ def list_teams_and_files(base_dir: Path, preferred: str = "JWR"):
     file_index = {}
     for p in sorted(base_dir.iterdir() if base_dir.exists() else []):
         if p.is_dir():
-            # System-Ordner und virtuelle Umgebungen ausblenden
-            if p.name in ['.devcontainer', '.git', '__pycache__', '.venv', 'venv', 'env', '.env']:
-                continue
             teams.append(p.name)
             files = sorted(list(p.glob("*.py")))
             files = [f for f in files if re.search(r"(eigene|gegen).*tore", f.name, re.IGNORECASE)]
@@ -649,129 +567,6 @@ def resolve_matchplan_ppt(team: str):
             return p
     return None
 
-@st.cache_data(ttl=900, show_spinner=False)
-def fetch_rl_mitte_table():
-    """Lädt die Tabelle und gibt Liste von Dicts mit rank, team, goals, points zurück."""
-    try:
-        resp = requests.get(RL_MITTE_TABLE_URL, timeout=HTTP_TIMEOUT, headers=HTTP_HEADERS, allow_redirects=True)
-        html = resp.text
-    except Exception:
-        return []
-
-    try:
-        soup = BeautifulSoup(html, "html.parser")
-        table = soup.find("table")
-        rows = []
-        if not table:
-            return rows
-        for tr in table.find_all("tr"):
-            cols = [c.get_text(strip=True) for c in tr.find_all(["td","th"]) ]
-            # Erwartet: [Platz, Team, S, G, U, V, Tore, D, P, ...]
-            if len(cols) >= 9 and cols[0].endswith('.'):
-                try:
-                    rank_str = cols[0].replace('.', '')
-                    rank = int(rank_str)
-                    team = cols[1]
-                    goals = cols[6]  # z.B. 7:13
-                    points = cols[8]
-                    rows.append({"rank": rank, "team": team, "goals": goals, "points": points})
-                except Exception:
-                    continue
-        return rows
-    except Exception:
-        return []
-
-def normalize_table_team_name(name: str) -> str:
-    n = name.lower().strip()
-    n = re.sub(r"\s+", " ", n)
-    
-    # Erweiterte Mappings basierend auf der Ligaportal-Tabelle
-    replacements = {
-        # Aus der Tabelle
-        "ask voitsberg": "Voitsberg",
-        "lask amateure oö": "LASK",
-        "lask amateure ooe": "LASK", 
-        "wac amateure": "WAC",
-        "sc kalsdorf": "Kalsdorf",
-        "sc weiz": "Weiz",
-        "union gurten": "Gurten", 
-        "sv lafnitz": "Lafnitz",
-        "askö oedt": "Oedt",
-        "union dietach": "Dietach",
-        "deutschlandsberg": "DSC",
-        "atus velden": "Velden",
-        "fc gleisdorf 09": "Gleisdorf",
-        "sk treibach": "Treibach",
-        "wallern/st. marienkirchen": "Wallern",
-        "usv st. anna/a.": "St. Anna",
-        "usv st. anna/a": "St. Anna",
-        "junge wikinger ried": "JWR",
-        "junge wikinger r": "JWR",
-        "junge wikinger": "JWR",
-        
-        # Weitere Varianten
-        "sv lafnetz": "Lafnitz",
-        "st. anna": "St. Anna",
-        "wallern/st. mari": "Wallern",
-        "deutschlandsberg…": "DSC",
-        "dsc": "DSC",
-        "gleisdorf": "Gleisdorf",
-        "treibach": "Treibach",
-        "voitsberg": "Voitsberg",
-        "kalsdorf": "Kalsdorf",
-        "weiz": "Weiz",
-        "gurten": "Gurten",
-        "lafnitz": "Lafnitz",
-        "oedt": "Oedt",
-        "dietach": "Dietach",
-        "velden": "Velden",
-        "wallern": "Wallern",
-        "lask": "LASK",
-        "wac": "WAC",
-    }
-    
-    for k, v in replacements.items():
-        if k in n:
-            return v
-    
-    # Fallback: erste zwei Wörter kapitalisieren
-    return " ".join([w.capitalize() for w in name.split()[:3]])
-
-def get_team_table_info(team: str) -> dict | None:
-    rows = fetch_rl_mitte_table()
-    if not rows:
-        return None
-    
-    # Spezielle Behandlung für JWR
-    if team == "JWR":
-        # Suche nach verschiedenen JWR-Varianten in der Tabelle
-        jwr_variants = ["junge wikinger ried", "junge wikinger r", "junge wikinger"]
-        for r in rows:
-            team_name = r.get("team", "").lower()
-            if any(variant in team_name for variant in jwr_variants):
-                return r
-    
-    target = normalize_table_team_name(team)
-    best = None
-    
-    # Debug: Zeige verfügbare Teams in der Tabelle
-    if st.session_state.get('debug_table_teams', False):
-        available_teams = [normalize_table_team_name(r.get("team","")) for r in rows]
-        st.caption(f"Debug: Suche '{target}' in verfügbaren Teams: {available_teams}")
-    
-    for r in rows:
-        t = normalize_table_team_name(r.get("team",""))
-        if t == target:
-            best = r
-            break
-    
-    # Debug: Falls kein Match gefunden
-    if not best and st.session_state.get('debug_table_teams', False):
-        original_teams = [r.get("team","") for r in rows]
-        st.caption(f"Debug: Kein Match für '{target}' (Original: '{team}'). Originale Teams: {original_teams}")
-    
-    return best
-
 # ========================= Zeichnen / Plot =========================
 def draw_pitch(ax, team: str):
     ax.set_facecolor('green')
@@ -892,306 +687,10 @@ def list_player_files(player_dir: Path):
                 files.append(f)
     return files
 
-def load_video_comments():
-    """Lädt gespeicherte Video-Kommentare aus der JSON-Datei."""
-    if COMMENTS_FILE.exists():
-        try:
-            with open(COMMENTS_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
-            return {}
-    return {}
-
-def save_video_comments(comments):
-    """Speichert Video-Kommentare in der JSON-Datei."""
-    try:
-        with open(COMMENTS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(comments, f, ensure_ascii=False, indent=2)
-        return True
-    except Exception:
-        return False
-
-def get_video_comment(player_name, video_name):
-    """Holt den Kommentar für ein spezifisches Video eines Spielers."""
-    comments = load_video_comments()
-    return comments.get(player_name, {}).get(video_name, "")
-
-def set_video_comment(player_name, video_name, comment):
-    """Setzt den Kommentar für ein spezifisches Video eines Spielers."""
-    comments = load_video_comments()
-    if player_name not in comments:
-        comments[player_name] = {}
-    comments[player_name][video_name] = comment
-    return save_video_comments(comments)
-
-def load_and_execute_altersstatistik_script():
-    """Lädt und führt das Altersstatistik-Skript aus."""
-    if not ALTERSSTATISTIK_SCRIPT.exists():
-        st.error(f"Altersstatistik-Skript nicht gefunden: {ALTERSSTATISTIK_SCRIPT}")
-        return False
-    
-    # Prüfe ob Excel-Datei existiert
-    if not ALTERSSTATISTIK_EXCEL.exists():
-        st.warning(f"""
-        ⚠️ **Excel-Datei nicht gefunden!**
-        
-        Das Altersstatistik-Skript benötigt die Datei: `Statistik Altersdurchschnitt.xlsx`
-        
-        **Erwarteter Pfad:** `{ALTERSSTATISTIK_EXCEL}`
-        
-        **Lösung:**
-        1. Stellen Sie sicher, dass die Excel-Datei im Verzeichnis `{ALTERSSTATISTIK_EXCEL.parent}` existiert
-        2. Oder kopieren Sie die Datei dorthin
-        3. Oder aktualisieren Sie den Pfad in der Konfiguration
-        """)
-        return False
-    
-    try:
-        # Skript-Inhalt laden
-        script_content = ALTERSSTATISTIK_SCRIPT.read_text(encoding='utf-8', errors='ignore')
-        
-        # Modifiziere das Skript, um den absoluten Pfad zur Excel-Datei zu verwenden
-        # Ersetze alle relativen Pfade mit dem absoluten Pfad
-        # Verwende raw string um Unicode-Escape-Fehler zu vermeiden
-        script_content = script_content.replace(
-            '"Statistik Altersdurchschnitt.xlsx"',
-            f'r"{str(ALTERSSTATISTIK_EXCEL)}"'
-        )
-        
-        # Modifiziere die get_team_color Funktion im Skript, um ungültige Farben zu verhindern
-        script_content = script_content.replace(
-            'def get_team_color(team_name):',
-            '''def get_team_color(team_name):
-    """Gibt eine sichere Farbe für ein Team zurück, immer gültige Hex-Farbe"""
-    if team_name is None:
-        return '#1f77b4'  # Standard-Blau
-    
-    team_str = str(team_name).strip()
-    if not team_str or team_str.lower() in ['nan', 'none', '']:
-        return '#1f77b4'  # Standard-Blau
-    
-    # Suche nach passender Farbe
-    for team_key, color in TEAM_COLORS.items():
-        if team_key.lower() in team_str.lower():
-            return color
-    
-    # Fallback: Generiere eine Farbe basierend auf dem Team-Namen
-    import hashlib
-    hash_object = hashlib.md5(team_str.encode())
-    hash_hex = hash_object.hexdigest()
-    return f'#{hash_hex[:6]}'  # Erste 6 Zeichen als Farbe'''
-        )
-        
-        # Modifiziere das Dropdownmenü, um nan-Werte zu filtern
-        script_content = script_content.replace(
-            'options=df_teams[\'Team\'].tolist(),',
-            'options=filter_valid_teams(df_teams[\'Team\'].tolist()),'
-        )
-        
-        # Korrigiere das Team-Mapping für Young Violets
-        script_content = script_content.replace(
-            "'Young Violets': 'Young Violetts',",
-            "'Young Violets': 'Young Violets',"
-        )
-        
-        # Korrigiere den Fallback-Namen für Young Violets
-        script_content = script_content.replace(
-            "'Young Violetts'",
-            "'Young Violets'"
-        )
-        
-        # Skript in einem exec() ausführen
-        # Erstelle einen lokalen Namespace für die Ausführung
-        local_namespace = {
-            'st': st,
-            'pd': pd,
-            'plt': plt,
-            'numpy': None,  # Wird bei Bedarf importiert
-            'np': None,     # Wird bei Bedarf importiert
-            'matplotlib': None,  # Wird bei Bedarf importiert
-            'os': os,
-            'pathlib': None,
-            'Path': Path,
-            # Standard-Team-Farben für das Altersstatistik-Skript
-            'TEAM_COLORS': {
-                'JWR': '#1f77b4',
-                'LASK': '#ff7f0e',
-                'Sturm': '#2ca02c',
-                'Rapid': '#d62728',
-                'WAC': '#9467bd',
-                'Liefering': '#8c564b',
-                'Altach Juniors': '#e377c2',
-                'Young Violets': '#7f7f7f',
-                'Gleisdorf': '#bcbd22',
-                'Gurten': '#17becf',
-                'Kalsdorf': '#ff9896',
-                'Lafnitz': '#98df8a',
-                'Oedt': '#ffbb78',
-                'St. Anna': '#f0027f',
-                'Treibach': '#386cb0',
-                'Velden': '#fdc086',
-                'Voitsberg': '#beaed4',
-                'Wallern': '#fccde5',
-                'Weiz': '#d9d9d9',
-                'Dietach': '#fb8072'
-            }
-        }
-        
-        # Versuche häufig benötigte Module zu importieren
-        try:
-            import numpy as np
-            local_namespace['np'] = np
-            local_namespace['numpy'] = np
-        except ImportError:
-            pass
-        
-        try:
-            import plotly
-            import plotly.express as px
-            import plotly.graph_objects as go
-            import plotly.offline as pyo
-            local_namespace['plotly'] = plotly
-            local_namespace['px'] = px
-            local_namespace['go'] = go
-            local_namespace['pyo'] = pyo
-        except ImportError:
-            st.warning("⚠️ Das 'plotly' Modul ist nicht installiert. Installieren Sie es mit: `pip install plotly`")
-            # Versuche plotly zu installieren
-            try:
-                import subprocess
-                import sys
-                st.info("🔄 Versuche plotly zu installieren...")
-                subprocess.check_call([sys.executable, "-m", "pip", "install", "plotly"])
-                st.success("✅ plotly erfolgreich installiert!")
-                
-                # Jetzt nochmal importieren
-                import plotly
-                import plotly.express as px
-                import plotly.graph_objects as go
-                import plotly.offline as pyo
-                local_namespace['plotly'] = plotly
-                local_namespace['px'] = px
-                local_namespace['go'] = go
-                local_namespace['pyo'] = pyo
-            except Exception as install_error:
-                st.error(f"❌ Konnte plotly nicht installieren: {install_error}")
-                st.info("Bitte installieren Sie plotly manuell mit: `pip install plotly`")
-                return False
-        
-        # Versuche openpyxl zu importieren (wird für Excel-Dateien benötigt)
-        try:
-            import openpyxl
-            local_namespace['openpyxl'] = openpyxl
-        except ImportError:
-            st.warning("⚠️ Das 'openpyxl' Modul ist nicht installiert. Es wird für Excel-Dateien benötigt.")
-            # Versuche openpyxl zu installieren
-            try:
-                import subprocess
-                import sys
-                st.info("🔄 Versuche openpyxl zu installieren...")
-                subprocess.check_call([sys.executable, "-m", "pip", "install", "openpyxl"])
-                st.success("✅ openpyxl erfolgreich installiert!")
-                
-                # Jetzt nochmal importieren
-                import openpyxl
-                local_namespace['openpyxl'] = openpyxl
-            except Exception as install_error:
-                st.error(f"❌ Konnte openpyxl nicht installieren: {install_error}")
-                st.info("Bitte installieren Sie openpyxl manuell mit: `pip install openpyxl`")
-                return False
-        
-        try:
-            import seaborn as sns
-            local_namespace['sns'] = sns
-        except ImportError:
-            pass
-        
-        try:
-            import scipy
-            local_namespace['scipy'] = scipy
-        except ImportError:
-            pass
-        
-        # TEAM_COLORS Variable für das Altersstatistik-Skript hinzufügen
-        TEAM_COLORS = {
-            'JWR': '#1f77b4',
-            'LASK': '#ff7f0e',
-            'Sturm': '#2ca02c',
-            'Rapid': '#d62728',
-            'WAC': '#9467bd',
-            'Liefering': '#8c564b',
-            'Altach Juniors': '#e377c2',
-            'Young Violets': '#7f7f7f',
-            'Gleisdorf': '#bcbd22',
-            'Gurten': '#17becf',
-            'Kalsdorf': '#ff9896',
-            'Lafnitz': '#98df8a',
-            'Oedt': '#ffbb78',
-            'St. Anna': '#f0027f',
-            'Treibach': '#386cb0',
-            'Velden': '#fdc086',
-            'Voitsberg': '#beaed4',
-            'Wallern': '#fccde5',
-            'Weiz': '#d9d9d9',
-            'Dietach': '#fb8072'
-        }
-        
-        # TEAM_COLORS sowohl im lokalen als auch im globalen Namespace verfügbar machen
-        local_namespace['TEAM_COLORS'] = TEAM_COLORS
-        globals()['TEAM_COLORS'] = TEAM_COLORS
-        
-        # Hilfsfunktion zum Filtern von ungültigen Team-Namen
-        def filter_valid_teams(teams):
-            """Filtert ungültige Team-Namen (NaN, None, leere Strings) heraus."""
-            if teams is None:
-                return []
-            valid_teams = []
-            for team in teams:
-                if team is not None and str(team).lower() not in ['nan', 'none', ''] and str(team).strip():
-                    valid_teams.append(team)
-            return valid_teams
-        
-        # Filter-Funktion zum lokalen Namespace hinzufügen
-        local_namespace['filter_valid_teams'] = filter_valid_teams
-        
-        # Sichere get_team_color Funktion hinzufügen
-        def safe_get_team_color(team_name):
-            """Gibt eine sichere Farbe für ein Team zurück, immer gültige Hex-Farbe"""
-            if team_name is None:
-                return '#1f77b4'  # Standard-Blau
-            
-            team_str = str(team_name).strip()
-            if not team_str or team_str.lower() in ['nan', 'none', '']:
-                return '#1f77b4'  # Standard-Blau
-            
-            # Suche nach passender Farbe
-            for team_key, color in TEAM_COLORS.items():
-                if team_key.lower() in team_str.lower():
-                    return color
-            
-            # Fallback: Generiere eine Farbe basierend auf dem Team-Namen
-            import hashlib
-            hash_object = hashlib.md5(team_str.encode())
-            hash_hex = hash_object.hexdigest()
-            return f'#{hash_hex[:6]}'  # Erste 6 Zeichen als Farbe
-        
-        # Sichere Funktionen zum lokalen Namespace hinzufügen
-        local_namespace['get_team_color'] = safe_get_team_color
-        local_namespace['safe_get_team_color'] = safe_get_team_color
-        
-        # Skript ausführen
-        exec(script_content, globals(), local_namespace)
-        return True
-        
-    except Exception as e:
-        st.error(f"Fehler beim Ausführen des Altersstatistik-Skripts: {e}")
-        st.exception(e)
-        return False
-
 # ========================= Render-Block (Vergleich) =========================
 def render_compare(goals_a, assists_a, label_a,
                    goals_b, assists_b, label_b,
-                   team_a, team_b, file_a=None, file_b=None):
+                   team_a, team_b):
     # ============== OBERER TEIL: Felder + rechte Stat-Spalte ==============
     colA_field, colB_field, col_stats_top = st.columns([2, 2, 2], gap="small")
 
@@ -1216,9 +715,6 @@ def render_compare(goals_a, assists_a, label_a,
     # --- Statboxen (ALLE TEAMS) direkt rechts neben dem rechten Spielfeld
     with col_stats_top:
         teams_for_stats = globals().get("teams", [team_a, team_b])
-
-        # Überschrift für Liga-Statistiken
-        st.markdown("<div class='small-heading' style='margin-bottom:8px;'>Liga-Statistiken</div>", unsafe_allow_html=True)
 
         # 1) Torstatistik gesamt (Videos)
         totals = count_all_goals(teams_for_stats)
@@ -1313,15 +809,9 @@ def render_compare(goals_a, assists_a, label_a,
             }
             zi_in, zi_out, zi_tot = count_zone_split_for_team(BASE_DIR / tname, x_min=24, x_max=42, y_min=84, y_max=100)
             zg_in, zg_out, zg_tot = count_zone_split_for_team_against(BASE_DIR / tname, x_min=24, x_max=42, y_min=84, y_max=100)
-            tbl = get_team_table_info(tname)
-            if tbl:
-                liga_info = f"Platz {tbl['rank']}, Tore {tbl['goals']}, Punkte {tbl['points']}"
-            else:
-                liga_info = "Platz/Tore/Punkte: –"
             st.markdown(
-                f"<div style='border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:8px; background:rgba(255,255,255,0.03); margin-top:6px;'>"
+                f"<div style='border:1px solid rgba(0,0,0,0.1); border-radius:8px; padding:8px; background:rgba(0,0,0,0.02); margin-top:6px;'>"
                 f"<div class='small-heading'>{tname}</div>"
-                f"<div style='font-size:0.85rem; margin-top:2px; color:#9ca3af;'><b>Ligastatus:</b> {liga_info}</div>"
                 f"<div style='font-size:0.85rem; margin-top:4px;'><b>Torstatistik:</b> {ts['1Touch']} 1Touch, {ts['2Touch']} 2Touch, {ts['Elfmeter']} Elfmeter, {ts['Sonstiges']} Sonstiges</div>"
                 f"<div style='font-size:0.85rem; margin-top:2px;'><b>Eigene Zonentore:</b> {zi_in} innen, {zi_out} außerhalb (gesamt {zi_tot})</div>"
                 f"<div style='font-size:0.85rem; margin-top:2px;'><b>Gegentore in Zone:</b> {zg_in} innen, {zg_out} außerhalb (gesamt {zg_tot})</div>"
@@ -1333,38 +823,22 @@ def render_compare(goals_a, assists_a, label_a,
     # --- Team A (links): Videos | Torschützen
     colA_vids, colA_scorers = st.columns([2, 1], gap="small")
     with colA_vids:
-        # Team A: Videos basierend auf der ausgewählten Datei laden
-        if file_a and "Gegentore" in file_a.name:
-            vidsA = load_opponent_goals_against(team_a)
-            title_suffix_a = " (Gegentore)"
-        else:
-            vidsA = load_team_videos(team_a)
-            title_suffix_a = ""
+        vidsA = load_team_videos(team_a)
         cntE, cnt1, cnt2, cntS = (
             len(vidsA.get('Elfmeter', [])),
             len(vidsA.get('1 Touch', [])),
             len(vidsA.get('2 Touch', [])),
             len(vidsA.get('Sonstiges', []))
         )
-        
-        # Automatisch nächste verfügbare Kategorie auswählen
-        categories = ['Elfmeter', '1 Touch', '2 Touch', 'Sonstiges']
-        counts = [cntE, cnt1, cnt2, cntS]
-        default_cat_idx = 0
-        for i, count in enumerate(counts):
-            if count > 0:
-                default_cat_idx = i
-                break
-        
         radio_labels_A = [
             f"Elfmeter ({cntE})",
             f"1 Touch ({cnt1})",
             f"2 Touch ({cnt2})",
             f"Sonstiges ({cntS})"
         ]
-        radio_map_A = {radio_labels_A[i]: cat for i, cat in enumerate(categories)}
-        st.markdown(f"<div class='small-heading'>🎬 Tore {team_a}{title_suffix_a}</div>", unsafe_allow_html=True)
-        catA_label = st.radio("Kategorie", radio_labels_A, key="vid_cat_A", horizontal=True, index=default_cat_idx)
+        radio_map_A = {radio_labels_A[i]: cat for i, cat in enumerate(['Elfmeter', '1 Touch', '2 Touch', 'Sonstiges'])}
+        st.markdown("<div class='small-heading'>🎬 Tore " + team_a + "</div>", unsafe_allow_html=True)
+        catA_label = st.radio("Kategorie", radio_labels_A, key="vid_cat_A", horizontal=True)
         catA = radio_map_A[catA_label]
         filesA = vidsA.get(catA, [])
         if filesA:
@@ -1374,7 +848,7 @@ def render_compare(goals_a, assists_a, label_a,
         else:
             st.caption("Keine Videos in dieser Kategorie.")
     with colA_scorers:
-        st.markdown(f"<div class='small-heading'>🏆 Torschützen {team_a}{title_suffix_a}</div>", unsafe_allow_html=True)
+        st.markdown("<div class='small-heading'>🏆 Torschützen " + team_a + "</div>", unsafe_allow_html=True)
         scorer_data_a = extract_scorer_table(
             vidsA.get("Elfmeter", []) + vidsA.get("1 Touch", []) +
             vidsA.get("2 Touch", []) + vidsA.get("Sonstiges", [])
@@ -1391,11 +865,8 @@ def render_compare(goals_a, assists_a, label_a,
     # --- Team B (rechts unten): Videos | Torschützen
     colB_vids, colB_scorers = st.columns([2, 1], gap="small")
     with colB_vids:
-        # Team B: Videos basierend auf der ausgewählten Datei laden
-        if file_b and "Gegentore" in file_b.name:
-            vidsB = load_opponent_goals_against(team_b)
-            title_suffix = " (Gegentore)"
-        elif team_b == team_a:  # Wenn es der gleiche Gegner ist
+        # Für Team B (Gegner) die Gegentore laden (alle Videos wo er als TeamB im Dateinamen steht)
+        if team_b == team_a:  # Wenn es der gleiche Gegner ist
             vidsB = load_opponent_goals_against(team_b)
             title_suffix = " (Gegentore)"
         else:
@@ -1408,25 +879,15 @@ def render_compare(goals_a, assists_a, label_a,
             len(vidsB.get('2 Touch', [])),
             len(vidsB.get('Sonstiges', []))
         )
-        
-        # Automatisch nächste verfügbare Kategorie auswählen
-        categories = ['Elfmeter', '1 Touch', '2 Touch', 'Sonstiges']
-        counts = [cntE, cnt1, cnt2, cntS]
-        default_cat_idx = 0
-        for i, count in enumerate(counts):
-            if count > 0:
-                default_cat_idx = i
-                break
-        
         radio_labels_B = [
             f"Elfmeter ({cntE})",
             f"1 Touch ({cnt1})",
             f"2 Touch ({cnt2})",
             f"Sonstiges ({cntS})"
         ]
-        radio_map_B = {radio_labels_B[i]: cat for i, cat in enumerate(categories)}
+        radio_map_B = {radio_labels_B[i]: cat for i, cat in enumerate(['Elfmeter', '1 Touch', '2 Touch', 'Sonstiges'])}
         st.markdown(f"<div class='small-heading'>🎬 Tore {team_b}{title_suffix}</div>", unsafe_allow_html=True)
-        catB_label = st.radio("Kategorie", radio_labels_B, key="vid_cat_B", horizontal=True, index=default_cat_idx)
+        catB_label = st.radio("Kategorie", radio_labels_B, key="vid_cat_B", horizontal=True)
         catB = radio_map_B[catB_label]
         filesB = vidsB.get(catB, [])
         if filesB:
@@ -1762,13 +1223,6 @@ def main():
 
     # Sidebar
     with st.sidebar:
-        # ForzaRied Logo ganz oben in der Sidebar
-        if FORZA_RIED_PATH.exists():
-            # Logo mittig zentrieren
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                st.image(str(FORZA_RIED_PATH), width=80)
-        
         # Ansicht-Umschalter via Query-Parameter (persistiert nach Refresh/Neutab)
         try:
             params = st.query_params  # Streamlit >= 1.32
@@ -1785,7 +1239,7 @@ def main():
                 st.experimental_set_query_params(**kw)
 
         current_view = _qp_get_value(get_param("view")) or "Dashboard"
-        options = ["Dashboard", "Individuelle Analysen", "Gegneranalyse", "Altersstatistik"]
+        options = ["Dashboard", "Individuelle Analysen"]
         view = st.selectbox(
             "Ansicht",
             options,
@@ -1795,21 +1249,6 @@ def main():
         if view != current_view:
             set_params_safe(view=view)
 
-        # Spieler-Buttons für individuelle Analysen in der Sidebar
-        if view == "Individuelle Analysen":
-            st.markdown("### 👥 Spieler auswählen")
-            
-            players = list_individual_players(IND_ANALYSEN_BASE)
-            if not players:
-                st.info("Keine Spielerordner gefunden.")
-            else:
-                # Spieler Zeile für Zeile anzeigen
-                for i, player_name in enumerate(players):
-                    if st.button(player_name, key=f"btn_player_{i}", use_container_width=True):
-                        st.session_state.selected_player = player_name
-                        st.rerun()
-
-        
         if view == "Dashboard":
             # --- Vorbelegen aus Query-Parametern (persistente Defaults) ---
             qp_tA = _qp_get_value(get_param("tA"))
@@ -1820,7 +1259,7 @@ def main():
                 st.session_state["tB"] = qp_tB
 
             # Nächsten Gegner automatisch von Ligaportal laden
-            if st.button("🔄 Nächster Gegner"):
+            if st.button("🔄 Nächsten Gegner von Ligaportal laden"):
                 try:
                     next_opp = get_next_opponent_from_ligaportal("JWR")
                     if next_opp:
@@ -1838,15 +1277,13 @@ def main():
                 except Exception as e:
                     st.error(f"❌ Fehler beim Laden: {e}")
 
-            team_a = select_with_state("Team A wählen", teams, key="tA", index=teams.index(st.session_state['tA']))
+
+
+                # Debug-Panel für Gegner-Erkennung
+            st.markdown("### ⚽ Team A")
+            team_a = select_with_state("Team wählen", teams, key="tA", index=teams.index(st.session_state['tA']))
             files_a = file_index.get(team_a, [])
             file_labels_a = [f.name for f in files_a]
-            
-            # Wenn sich Team A geändert hat, Datei A zurücksetzen
-            if 'last_team_a' not in st.session_state or st.session_state['last_team_a'] != team_a:
-                st.session_state['last_team_a'] = team_a
-                st.session_state['fA_idx'] = 0  # Zurücksetzen
-                st.session_state['fB_idx'] = 0  # Auch Team B zurücksetzen
             # Datei A Vorbelegung aus Param
             qp_fA = _qp_get_value(get_param("fA"))
             if "fA_idx" not in st.session_state and qp_fA and qp_fA in file_labels_a:
@@ -1857,39 +1294,16 @@ def main():
             idx_a = select_idx_with_state("Datei wählen", len(files_a), key="fA_idx", default_index=default_idx_a, labels=file_labels_a)
             file_a = files_a[idx_a] if files_a else None
 
-            team_b = select_with_state("Team B wählen", teams, key="tB", index=teams.index(st.session_state['tB']))
+            st.markdown("### ⚽ Team B")
+            team_b = select_with_state("Team wählen", teams, key="tB", index=teams.index(st.session_state['tB']))
             files_b = file_index.get(team_b, [])
             file_labels_b = [f.name for f in files_b]
-            
-            # Intelligente Datei-Auswahl für Team B
-            if team_b == team_a and file_a:
-                # Wenn es das gleiche Team ist, wähle automatisch die passende Datei
-                file_a_name = file_a.name
-                if "EigeneTore" in file_a_name:
-                    # Wenn Team A eigene Tore hat, wähle Gegentore für Team B
-                    desired_b = pick_file(files_b, 'against')
-                elif "Gegentore" in file_a_name:
-                    # Wenn Team A Gegentore hat, wähle eigene Tore für Team B
-                    desired_b = pick_file(files_b, 'own')
-                else:
-                    # Fallback: Standard-Logik
-                    desired_b = pick_file(files_b, 'against')
-            else:
-                # Standard-Logik für verschiedene Teams
-                desired_b = pick_file(files_b, 'against')
-            
-            # Wenn sich Team B geändert hat oder es das gleiche Team wie A ist, Datei B automatisch setzen
-            if ('last_team_b' not in st.session_state or st.session_state['last_team_b'] != team_b or 
-                (team_b == team_a and 'last_team_a' in st.session_state)):
-                st.session_state['last_team_b'] = team_b
-                if files_b and desired_b in files_b:
-                    st.session_state['fB_idx'] = files_b.index(desired_b)
-            
-            # Datei B Vorbelegung aus Param oder intelligenter Auswahl
+            # Datei B Vorbelegung aus Param
             qp_fB = _qp_get_value(get_param("fB"))
             if "fB_idx" not in st.session_state and qp_fB and qp_fB in file_labels_b:
                 default_idx_b = file_labels_b.index(qp_fB)
             else:
+                desired_b = pick_file(files_b, 'against')
                 default_idx_b = files_b.index(desired_b) if (files_b and desired_b in files_b) else 0
             idx_b = select_idx_with_state("Datei wählen", len(files_b), key="fB_idx", default_index=default_idx_b, labels=file_labels_b)
             file_b = files_b[idx_b] if files_b else None
@@ -1903,14 +1317,20 @@ def main():
                 fB_name = ""
             set_params_safe(view=view, tA=team_a, fA=fA_name, tB=team_b, fB=fB_name)
 
-            if st.button("🟨 Kartenwarnung", help="Kartenwarnung anzeigen", key="btn_show_warn"):
-                st.session_state.show_warnsystem = True
-                st.session_state.warnsystem_start = time.time()
-
             st.markdown("### 🔗 Links")
-            st.markdown("[📑 RL Tabelle](https://www.ligaportal.at/regionalliga-mitte/tabelle)")
-            st.markdown("[📅 JWR Spielplan](https://vereine.oefb.at/SVOberbankRied/Mannschaften/Saison-2025-26/KM-Amat-/Spiele)")
-            st.markdown("[🚫 Gesperrte Spieler](https://www.ofv.at/ofv/Bewerb/Karten/226374?Regionalliga-Mitte)")
+            st.markdown("[📑 Zur aktuellen Tabelle](https://www.ligaportal.at/regionalliga-mitte/tabelle)")
+            st.markdown("[📅 Spielplan JWR (ÖFB)](https://vereine.oefb.at/SVOberbankRied/Mannschaften/Saison-2025-26/KM-Amat-/Spiele)")
+            st.markdown("[🚫 Gesperrte Spieler](https://www.ofv.at/ofv/Spielbetrieb/Sperren/Gesperrte-Spieler)")
+
+            st.markdown("### 🟨 Kartenwarnung")
+            col_btn1, col_btn2 = st.columns([1, 1])
+            with col_btn1:
+                if st.button("🟨", help="Kartenwarnung anzeigen", key="btn_show_warn"):
+                    st.session_state.show_warnsystem = True
+                    st.session_state.warnsystem_start = time.time()
+            with col_btn2:
+                if st.button("✖️", help="Ausblenden", key="btn_hide_warn"):
+                    st.session_state.show_warnsystem = False
         else:
             st.caption("<div class='sidebar-caption'>Modus: Individuelle Analysen</div>", unsafe_allow_html=True)
             file_a = file_b = None
@@ -1918,22 +1338,13 @@ def main():
             team_b = teams[0]
 
     # ======= CONTENT RENDERING =======
-    
     if view == "Dashboard":
         # Warnsystem (zeitlich begrenzt sichtbar)
         if st.session_state.get("show_warnsystem"):
             start = st.session_state.get("warnsystem_start", 0)
             now = time.time()
             if now - start <= 60:
-                # Titel mit X-Button zum Schließen
-                col_title, col_close = st.columns([4, 1])
-                with col_title:
-                    st.subheader("🟨 Kartenstatistik")
-                with col_close:
-                    if st.button("✖️", help="Kartenwarnung schließen", key="btn_close_warn_main"):
-                        st.session_state.show_warnsystem = False
-                        st.rerun()
-                
+                st.subheader("🟨 Gelbe Karten Warnsystem")
                 url = "https://vereine.oefb.at/SVOberbankRied/Mannschaften/Saison-2025-26/KM-Amat-/Kader"
                 cols = st.columns([1,1,1,1,2])
                 with cols[0]:
@@ -1941,9 +1352,14 @@ def main():
                 with cols[1]:
                     thresh = st.number_input("Schwellwert", min_value=1, max_value=10, value=3, step=1, help="Ab wie vielen Karten warnen? Gilt für die gewählte Art.")
                 with cols[2]:
-                    show_all = st.checkbox("JWR Spieler mit gelb", value=False)
+                    show_all = st.checkbox("Alle Spieler anzeigen", value=False)
+                with cols[3]:
+                    do_refresh = st.button("🔄 Neu laden")
+                ts = time.strftime("%H:%M:%S")
+                with cols[4]:
+                    st.caption(f"Letzte Prüfung: {ts}")
                 try:
-                    headers = {"Cache-Control": "no-cache"}
+                    headers = {"Cache-Control": "no-cache"} if do_refresh else {}
                     resp = requests.get(url, timeout=8, headers=headers)
                     html = resp.text
                     kader = extrahiere_kaderdaten(html)
@@ -1965,41 +1381,39 @@ def main():
                     else:
                         st.success(f"✅ Kein Spieler mit ≥ {int(thresh)} {sel_col}")
                     if show_all:
-                        st.markdown(f"### Übersicht {sel_col} (Spieler mit mindestens 1 {sel_col})")
-                        # Nur Spieler anzeigen, die mindestens 1 Karte der gewählten Art haben
-                        filtered_df = df[df[sel_col] > 0].sort_values([sel_col, "Spieler"], ascending=[False, True])
-                        if not filtered_df.empty:
-                            st.dataframe(filtered_df[["Spieler", sel_col]], use_container_width=True, hide_index=True)
-                        else:
-                            st.info(f"Kein Spieler hat {sel_col} Karten.")
+                        st.markdown(f"### Übersicht {sel_col} (alle)")
+                        st.dataframe(df[["Spieler", sel_col]].sort_values([sel_col, "Spieler"], ascending=[False, True]), use_container_width=True, hide_index=True)
                 else:
                     st.info("Keine Kaderdaten gefunden.")
             else:
                 st.session_state.show_warnsystem = False
 
+        # Header: Titel + Logos
+        head_left, head_right = st.columns([2, 10], gap="small")
+        with head_left:
+            st.markdown("<h4>📊 Dashboard</h4>", unsafe_allow_html=True)
 
-        # Logos (klickbar → öffnet LineUp lokal)
-        col_logos, col_stats = st.columns([8, 4], gap="small")
+        with head_right:
+            col_logos, col_stats = st.columns([8, 4], gap="small")
 
-        with col_logos:
-            logos_html = []
-            for t in teams:
-                lp = find_team_logo(t)
-                if lp and lp.exists():
-                    data_uri = encode_image_base64(lp)
-                    if data_uri:
-                        href = f"?open={quote_plus(t)}"
-                        logos_html.append(
-                            f'<a href="{href}" target="_self" title="LineUp {t} öffnen">'
-                            f'<img src="{data_uri}" alt="{t}" /></a>'
-                        )
-                # Kein Fallback auf LOGO_PATH mehr - nur echte Team-Logos anzeigen
-            
-            if logos_html:
-                st.markdown(
-                    '<div class="logo-row">' + ''.join(logos_html) + '</div>',
-                    unsafe_allow_html=True
-                )
+            # Logos (klickbar → öffnet LineUp lokal)
+            with col_logos:
+                logos_html = []
+                for t in teams:
+                    lp = find_team_logo(t) or LOGO_PATH
+                    if lp and lp.exists():
+                        data_uri = encode_image_base64(lp)
+                        if data_uri:
+                            href = f"?open={quote_plus(t)}"
+                            logos_html.append(
+                                f'<a href="{href}" target="_self" title="LineUp {t} öffnen">'
+                                f'<img src="{data_uri}" alt="{t}" /></a>'
+                            )
+                if logos_html:
+                    st.markdown(
+                        '<div class="logo-row">' + ''.join(logos_html) + '</div>',
+                        unsafe_allow_html=True
+                    )
 
         # Daten laden & Rendern
         goals_a, assists_a, title_a = parse_goals_assists(file_a) if file_a else ([], [], None)
@@ -2008,19 +1422,12 @@ def main():
         render_compare(
             goals_a, assists_a, title_a or f"{team_a}",
             goals_b, assists_b, title_b or f"{team_b}",
-            team_a, team_b, file_a, file_b
+            team_a, team_b
         )
 
-        # Torschützen-Anzeige
-        if team_a == team_b:
-            # Bei gleichem Team: Nur eigene Tore für die Torschützen-Übersicht
-            vidsA_all = load_team_videos(team_a)
-            vidsB_all = load_team_videos(team_b)  # Gleiche Daten wie Team A
-        else:
-            # Bei verschiedenen Teams: Beide zeigen eigene Tore
-            vidsA_all = load_team_videos(team_a)
-            vidsB_all = load_team_videos(team_b)
-            
+        # Extra: Torschützen-Tabs
+        vidsA_all = load_team_videos(team_a)
+        vidsB_all = load_team_videos(team_b)
         scorer_data_a = extract_scorer_table(
             vidsA_all.get("Elfmeter", []) + vidsA_all.get("1 Touch", []) +
             vidsA_all.get("2 Touch", []) + vidsA_all.get("Sonstiges", [])
@@ -2029,293 +1436,65 @@ def main():
             vidsB_all.get("Elfmeter", []) + vidsB_all.get("1 Touch", []) +
             vidsB_all.get("2 Touch", []) + vidsB_all.get("Sonstiges", [])
         )
-        
         if scorer_data_a or scorer_data_b:
-            if team_a == team_b:
-                # Wenn es das gleiche Team ist: Einheitliche Anzeige
-                st.markdown("### 🏆 Torschützen-Übersicht")
-                
-                # Alle Torschützen in einer Liste zusammenfassen
-                all_scorers = {}
-                
-                # Bei gleichem Team nur Team A Daten verwenden (keine Duplikate)
+            tab1, tab2 = st.tabs([f"Torschützen {team_a}", f"Torschützen {team_b}"])
+            with tab1:
                 if scorer_data_a:
+                    grouped = defaultdict(lambda: {"Tore": 0, "Details": []})
                     for row in scorer_data_a:
-                        player = row["Spieler"]
-                        if player not in all_scorers:
-                            all_scorers[player] = {"Tore": 0, "Details": []}
-                        all_scorers[player]["Tore"] += row["Tore"]
+                        grouped[row["Spieler"]]["Tore"] += row["Tore"]
                         for video in row["Videos"]:
-                            all_scorers[player]["Details"].append({
-                                "Video": video, 
-                                "Kategorie": row["Kategorie"], 
-                                "Gegner": row["Gegner"]
-                            })
-                
-                # Nach Toranzahl sortieren und anzeigen
-                for name, data in sorted(all_scorers.items(), key=lambda x: x[1]["Tore"], reverse=True):
-                    st.markdown(f"#### {name} ({data['Tore']} {'Tor' if data['Tore']==1 else 'Tore'})")
-                    
-                    for detail in data["Details"]:
-                        with st.expander(f"▶️ {name} – {detail['Kategorie']} vs. {detail['Gegner']}"):
-                            st.video(str(detail["Video"]))
-            else:
-                # Wenn es verschiedene Teams sind: Separate Tabs
-                tab1, tab2 = st.tabs([f"Torschützen {team_a}", f"Torschützen {team_b}"])
-                with tab1:
-                    if scorer_data_a:
-                        grouped = defaultdict(lambda: {"Tore": 0, "Details": []})
-                        for row in scorer_data_a:
-                            grouped[row["Spieler"]]["Tore"] += row["Tore"]
-                            for video in row["Videos"]:
-                                grouped[row["Spieler"]]["Details"].append({"Video": video, "Kategorie": row["Kategorie"], "Gegner": row["Gegner"]})
-                        for name, data in sorted(grouped.items(), key=lambda x: x[1]["Tore"], reverse=True):
-                            st.markdown(f"### {name} ({data['Tore']} {'Tor' if data['Tore']==1 else 'Tore'})")
-                            for detail in data["Details"]:
-                                with st.expander(f"▶️ {name} – {detail['Kategorie']} vs. {detail['Gegner']}"):
-                                    st.video(str(detail["Video"]))
-                    else:
-                        st.caption("Keine Torschützen-Daten für Team A verfügbar.")
-                with tab2:
-                    if scorer_data_b:
-                        grouped = defaultdict(lambda: {"Tore": 0, "Details": []})
-                        for row in scorer_data_b:
-                            grouped[row["Spieler"]]["Tore"] += row["Tore"]
-                            for video in row["Videos"]:
-                                grouped[row["Spieler"]]["Details"].append({"Video": video, "Kategorie": row["Kategorie"], "Gegner": row["Gegner"]})
-                        for name, data in sorted(grouped.items(), key=lambda x: x[1]["Tore"], reverse=True):
-                            st.markdown(f"### {name} ({data['Tore']} {'Tor' if data['Tore']==1 else 'Tore'})")
-                            for detail in data["Details"]:
-                                with st.expander(f"▶️ {name} – {detail['Kategorie']} vs. {detail['Gegner']}"):
-                                    st.video(str(detail["Video"]))
-                    else:
-                        st.caption("Keine Torschützen-Daten für Team B verfügbar.")
-        else:
-            st.caption("Keine Torschützen-Daten verfügbar.")
+                            grouped[row["Spieler"]]["Details"].append({"Video": video, "Kategorie": row["Kategorie"], "Gegner": row["Gegner"]})
+                    for name, data in sorted(grouped.items(), key=lambda x: x[1]["Tore"], reverse=True):
+                        st.markdown(f"### {name} ({data['Tore']} {'Tor' if data['Tore']==1 else 'Tore'})")
+                        for detail in data["Details"]:
+                            with st.expander(f"▶️ {name} – {detail['Kategorie']} vs. {detail['Gegner']}"):
+                                st.video(str(detail["Video"]))
+                else:
+                    st.caption("Keine Torschützen-Daten für Team A verfügbar.")
+            with tab2:
+                if scorer_data_b:
+                    grouped = defaultdict(lambda: {"Tore": 0, "Details": []})
+                    for row in scorer_data_b:
+                        grouped[row["Spieler"]]["Tore"] += row["Tore"]
+                        for video in row["Videos"]:
+                            grouped[row["Spieler"]]["Details"].append({"Video": video, "Kategorie": row["Kategorie"], "Gegner": row["Gegner"]})
+                    for name, data in sorted(grouped.items(), key=lambda x: x[1]["Tore"], reverse=True):
+                        st.markdown(f"### {name} ({data['Tore']} {'Tor' if data['Tore']==1 else 'Tore'})")
+                        for detail in data["Details"]:
+                            with st.expander(f"▶️ {name} – {detail['Kategorie']} vs. {detail['Gegner']}"):
+                                st.video(str(detail["Video"]))
+                else:
+                    st.caption("Keine Torschützen-Daten für Team B verfügbar.")
 
-    elif view == "Individuelle Analysen":
+    else:
         # ============== Individuelle Analysen Ansicht ==============
-        st.markdown("<h4>Individuelle Analysen</h4>", unsafe_allow_html=True)
+        st.markdown("<h4>🧠 Individuelle Analysen</h4>", unsafe_allow_html=True)
 
         players = list_individual_players(IND_ANALYSEN_BASE)
         if not players:
-            st.info("Keine Spielerordner gefunden unter 'Individuelle Analysen'.")
+            st.info("Keine Spielerordner gefunden unter „Individuelle Analysen“.")
         else:
+            player = st.selectbox("Spieler wählen", players, key="ind_player_center")
+            pdir = IND_ANALYSEN_BASE / player
+            pfiles = list_player_files(pdir)
 
-            
-            # Ausgewählten Spieler anzeigen
-            selected_player = st.session_state.get("selected_player")
-            if selected_player:
-                # Spielername und Bild nebeneinander mit Abstand anzeigen
-                st.markdown(f"### {selected_player}")
-                
-                # Spielerbild mit Abstand laden und anzeigen
-                player_dir = IND_ANALYSEN_BASE / selected_player
-                image_files = list(player_dir.glob("*.png")) + list(player_dir.glob("*.jpg")) + list(player_dir.glob("*.jpeg"))
-                if image_files:
-                    st.image(str(image_files[0]), width=80)
-                
-                pdir = IND_ANALYSEN_BASE / selected_player
-                pfiles = list_player_files(pdir)
-
-                if not pfiles:
-                    st.caption("Keine Dateien im gewählten Ordner.")
-                else:
-                    video_files = [f for f in pfiles if f.suffix.lower() in VIDEO_EXTS]
-
-                    if not video_files:
-                        st.caption("Keine Videos für diesen Spieler vorhanden.")
-                    else:
-
-                        cols_per_row = 4
-                        cols = st.columns(cols_per_row, gap="small")
-                        for i, vf in enumerate(video_files):
-                            with cols[i % cols_per_row]:
-                                st.video(str(vf))
-                                st.caption(vf.name)
-                                
-                                # Kommentarfeld für das Video
-                                comment_key = f"comment_{selected_player}_{vf.name}"
-                                current_comment = get_video_comment(selected_player, vf.name)
-                                
-                                # Kommentar-Textfeld
-                                new_comment = st.text_area(
-                                    "💬 Kommentar",
-                                    value=current_comment,
-                                    key=comment_key,
-                                    height=80,
-                                    placeholder="Notizen zum Video eingeben...",
-                                    help="Ihre Analyse oder Notizen zu diesem Video"
-                                )
-                                
-                                # Speichern-Button
-                                if st.button("💾 Speichern", key=f"save_{comment_key}", use_container_width=True):
-                                    if set_video_comment(selected_player, vf.name, new_comment):
-                                        st.success("✅ Kommentar gespeichert!")
-                                        st.rerun()
-                                    else:
-                                        st.error("❌ Fehler beim Speichern")
-                                
-                                # Zeige gespeicherten Kommentar an, falls vorhanden
-                                if current_comment:
-                                    st.info(f"📝 **Gespeichert:** {current_comment}")
+            if not pfiles:
+                st.caption("Keine Dateien im gewählten Ordner.")
             else:
-                st.info("Bitte wählen Sie einen Spieler aus der Sidebar aus.")
+                video_files = [f for f in pfiles if f.suffix.lower() in VIDEO_EXTS]
 
-    elif view == "Gegneranalyse":
-        # ============== Gegneranalyse Ansicht ==============
-        st.markdown("<h4>🎬 Gegneranalyse</h4>", unsafe_allow_html=True)
-        
-        # Teams aus dem Videos-Ordner laden
-        video_teams = []
-        if VIDEOS_BASE.exists():
-            for team_dir in sorted(VIDEOS_BASE.iterdir()):
-                if team_dir.is_dir():
-                    video_teams.append(team_dir.name)
-        
-        if not video_teams:
-            st.warning(f"Keine Team-Ordner im Videos-Verzeichnis gefunden: {VIDEOS_BASE}")
-        else:
-            # Team-Buttons in der Sidebar
-            
-            # Aktuell ausgewähltes Team im Session State speichern
-            if 'selected_video_team' not in st.session_state:
-                # Automatisch den nächsten Gegner von JWR auswählen
-                try:
-                    next_opponent = get_next_opponent_from_ligaportal("JWR")
-                    if next_opponent:
-                        # Mappe den Ligaportal-Namen auf den lokalen Ordnernamen
-                        mapped_opp = map_to_existing_team(next_opponent, video_teams)
-                        if mapped_opp:
-                            st.session_state.selected_video_team = mapped_opp
-                        else:
-                            # Fallback: Erstes verfügbares Team
-                            st.session_state.selected_video_team = video_teams[0] if video_teams else None
-                    else:
-                        # Fallback: Erstes verfügbares Team
-                        st.session_state.selected_video_team = video_teams[0] if video_teams else None
-                except Exception:
-                    # Fallback: Erstes verfügbares Team
-                    st.session_state.selected_video_team = video_teams[0] if video_teams else None
-            
-            # Team-Buttons anzeigen
-            for team_name in video_teams:
-                if st.sidebar.button(team_name, key=f"btn_team_{team_name}", use_container_width=True):
-                    st.session_state.selected_video_team = team_name
-                    st.rerun()
-            
-            # Ausgewähltes Team anzeigen
-            selected_video_team = st.session_state.selected_video_team
-            
-            if selected_video_team:
-                team_video_dir = VIDEOS_BASE / selected_video_team
-                
-                # Videos filtern (nur solche die mit Zahlen beginnen)
-                video_files = []
-                for video_file in sorted(team_video_dir.iterdir()):
-                    if video_file.is_file() and video_file.suffix.lower() in VIDEO_EXTS:
-                        # Prüfe ob der Dateiname mit Zahlen beginnt (z.B. 01_XXX, 10_XXX)
-                        if re.match(r'^\d+_', video_file.name):
-                            video_files.append(video_file)
-                
                 if not video_files:
-                    st.info(f"Keine Videos mit numerischen Präfixen für {selected_video_team} gefunden.")
+                    st.caption("Keine Videos für diesen Spieler vorhanden.")
                 else:
-                    # Überschrift mit PowerPoint-Link
-                    col_title, col_ppt = st.columns([3, 1])
-                    with col_title:
-                        st.markdown(f"### 📁 {selected_video_team} - Gegneranalyse")
-                    with col_ppt:
-                        # PowerPoint-Link suchen und anzeigen
-                        ppt_path = None
-                        
-                        # Mapping für Team-Namen zu Ordner-Namen
-                        team_folder_mapping = {
-                            "St. Anna": "StAnna",
-                            "St.Anna": "StAnna",
-                            "StAnna": "StAnna",
-                            # Weitere Mappings können hier hinzugefügt werden
-                        }
-                        
-                        # Verwende gemappten Ordnernamen oder Original-Namen
-                        folder_name = team_folder_mapping.get(selected_video_team, selected_video_team)
-                        matchplan_team_dir = MATCHPLAN_BASE / folder_name
-                        
-                        if matchplan_team_dir.exists():
-                            # Suche nach PowerPoint-Dateien die mit "Gegneranalyse" beginnen
-                            ppt_files = list(matchplan_team_dir.glob("Gegneranalyse*.pptx"))
-                            if ppt_files:
-                                ppt_path = sorted(ppt_files)[0]  # Erste gefundene Datei
-                        
-                        if ppt_path and ppt_path.exists():
-                            # PowerPoint öffnen Button
-                            if st.button("📊 PowerPoint öffnen", key=f"btn_ppt_{selected_video_team}"):
-                                try:
-                                    import os
-                                    if os.name == "nt":  # Windows
-                                        os.startfile(str(ppt_path))
-                                        # Keine Erfolgsmeldung mehr anzeigen
-                                    else:
-                                        st.info(f"PowerPoint-Datei gefunden: {ppt_path.name}")
-                                except Exception as e:
-                                    st.error(f"❌ Fehler beim Öffnen: {e}")
-                        else:
-                            st.caption(f"Keine PowerPoint gefunden")
-                    
-                    # Videos in einem Grid anzeigen
-                    
-                    # Videos in einem Grid anzeigen
-                    cols_per_row = 3
-                    
-                    # Grid-Layout für Videos
-                    for row_start in range(0, len(video_files), cols_per_row):
-                        # Neue Zeile mit Spalten erstellen
-                        cols = st.columns(cols_per_row, gap="small")
-                        
-                        for col_idx in range(cols_per_row):
-                            video_idx = row_start + col_idx
-                            
-                            if video_idx < len(video_files):
-                                with cols[col_idx]:
-                                    video_file = video_files[video_idx]
-                                    
-                                    try:
-                                        # Video mit Standard st.video anzeigen (funktioniert zuverlässig)
-                                        st.video(str(video_file))
-                                        st.caption(f"**{video_file.name}**")
-                                        st.caption("💡 Doppelklick auf das Video für Vollbild-Modus")
-                                    except Exception:
-                                        # Fallback: Download-Button
-                                        st.error("❌ Video kann nicht angezeigt werden")
-                                        st.download_button(
-                                            label=f"📥 {video_file.name} herunterladen",
-                                            data=video_file.read_bytes(),
-                                            file_name=video_file.name,
-                                            mime="video/mp4"
-                                        )
-                            else:
-                                # Leere Spalte für unvollständige Zeilen
-                                with cols[col_idx]:
-                                    st.empty()
+                    st.markdown("##### 🎬 Video-Vorschauen")
+                    cols_per_row = 4
+                    cols = st.columns(cols_per_row, gap="small")
+                    for i, vf in enumerate(video_files):
+                        with cols[i % cols_per_row]:
+                            st.video(str(vf))
+                            st.caption(vf.name)
 
-    elif view == "Altersstatistik":
-        # ============== Altersstatistik Ansicht ==============
-        st.markdown("<h4>📊 Altersstatistik</h4>", unsafe_allow_html=True)
-        
-
-        
-        # Altersstatistik-Skript laden und ausführen
-        if st.button("🔄 Altersstatistik aktualisieren", key="btn_refresh_altersstatistik"):
-            st.rerun()
-        
-        # Skript ausführen
-        success = load_and_execute_altersstatistik_script()
-        
-        if not success:
-            st.warning("""
-            **Hinweis:** Falls das Altersstatistik-Skript nicht geladen werden kann, 
-            überprüfen Sie bitte den Pfad: `C:\\Users\\demmelb-ma\\OneDrive - COC AG\\JWR\\Matches\\2526\\Durchschnittsalter.py`
-            """)
 
 # Entry point
 if __name__ == "__main__":
