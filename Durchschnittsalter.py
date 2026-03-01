@@ -335,7 +335,7 @@ st.markdown("---")
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    st.markdown("## 📊 Altersdurchschnitt aller Teams")
+    st.markdown("## 📊 Altersdurchschnitt aller Teams - Startelf")
     
     # Balkendiagramm aller Teams mit Team-Farben
     fig = go.Figure()
